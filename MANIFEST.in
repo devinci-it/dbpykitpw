@@ -1,0 +1,32 @@
+# MANIFEST.in - Include additional files in distribution
+
+# Include documentation files
+include wiki/ *
+
+# Include configuration files
+include setup.py
+include setup.cfg
+include Makefile
+include Pipfile
+include .gitignore
+
+# Include static templates
+recursive-include src/dbpykitpw/static *
+
+# Include demo files
+recursive-include src/dbpykitpw/static/demo *
+
+# Exclude unnecessary files
+exclude .pytest_cache
+exclude .coverage
+exclude *.pyc
+exclude __pycache__
+exclude .git
+exclude .github
+exclude .gitignore
+exclude .editorconfig
+exclude .vscode
+exclude *.egg-info
+
+# Exclude test files from distribution (optional)
+# recursive-exclude tests *

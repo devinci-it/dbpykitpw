@@ -4,6 +4,9 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+picassocli = "*"
+tabulate = "*"
+dbpykitpw = {file = ".", editable = true}
 
 [dev-packages]
 picassocli = "*"
