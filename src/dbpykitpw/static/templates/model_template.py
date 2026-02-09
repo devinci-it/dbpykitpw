@@ -34,7 +34,11 @@ class {{MODEL_CLASS}}(BaseModel):
     
     class Meta:
         table_name = "{{SNAKE_CASE}}"
-    
+
+    def __init__(self, **kwargs):
+        """Initialize Product with dynamic setter methods."""
+        super().__init__(**kwargs)
+        
     def __repr__(self):
         """Return detailed string representation."""
         return f"{{MODEL_CLASS}}(id={self.id}, created={self.created_at})"

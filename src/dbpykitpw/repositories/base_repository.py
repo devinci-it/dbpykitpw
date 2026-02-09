@@ -1,5 +1,45 @@
 """
-Base Repository - Generic repository for CRUD operations with transaction support.
+Base Repository - Generic CRUD operations with transaction support.
+
+Provides a base repository class for all models with common database operations
+including Create, Read, Update, Delete, soft delete, restore, and data transformations.
+
+The BaseRepository handles:
+- Atomic CRUD operations wrapped in transactions
+- Soft delete (logical deletion) with restore capability
+- Flexible querying by primary key or any field
+- Data transformations (model to dict/JSON and vice versa)
+- Schema introspection (columns, primary keys, types)
+
+Usage:
+    Define a custom repository:
+    
+    >>> from dbpykitpw import BaseRepository, register_repository
+    >>> from models.user import User
+    >>>
+    >>> @register_repository("user_repo")
+    ... class UserRepository(BaseRepository):
+    ...     model = User
+    ...     soft_delete_enabled = True
+    ...     
+    ...     def get_by_email(self, email: str):
+    ...         return self.get_by_field("email", email)
+    
+    Use in application:
+    
+    >>> repo = db.get_repository("user_repo")  # Get the registered repository class
+    >>> # user_repo_instance = UserRepository(db._db)  # Instantiate the repository with database (OR)
+    >>> user = User(username="alice", email="alice@test.com")
+    >>> repo.create(user)
+    >>> found = repo.get_by_id(user.id)
+    >>> repo.update(user.id, ("username", "alice_smith"))
+    >>> repo.delete(user.id)  # Soft delete
+    >>> repo.restore(user.id)  # Restore soft deleted
+
+Attributes:
+    model (Type[Model]): The Peewee Model class for this repository
+    soft_delete_field (str): Name of soft delete field, defaults to "deleted_at"
+    soft_delete_enabled (bool): Enable soft delete functionality
 """
 
 from peewee import Model
@@ -12,33 +52,56 @@ from dbpykitpw.utils.data_transformer import DataTransformer
 
 class BaseRepository:
     """
-    Base repository class providing generic CRUD operations.
-    Supports soft delete, transactions, and data transformations.
+    Generic repository class providing CRUD operations with transaction support.
+    
+    This is the base class for all repositories. It provides:
+    - Atomic Create, Read, Update, Delete operations
+    - Soft delete with restore capability
+    - Data transformation utilities
+    - Field-based and ID-based querying
+    - Count and existence checking
+    - Raw SQL query support
     """
 
     model: Optional[Type[Model]] = None
     soft_delete_field: Optional[str] = "deleted_at"
     soft_delete_enabled: bool = False
 
-    def __init__(self, database):
+    def __init__(self, database: "SqliteDatabase") -> None:
         """
         Initialize the repository.
 
         Args:
-            database: SqliteDatabase instance from DatabaseSingleton
+            database (SqliteDatabase): SqliteDatabase instance from DatabaseSingleton
+            
+        Example:
+            >>> from dbpykitpw import DatabaseSingleton
+            >>> db = DatabaseSingleton.get_instance()
+            >>> repo = UserRepository(db._db)
         """
         self.db = database
         self.transaction_manager = TransactionManager(database)
 
     def create(self, model_instance: Model) -> Model:
         """
-        Create a new record in the database.
+        Create and persist a new record in the database.
+        
+        Wraps the save operation in an atomic transaction. Sets created_at and
+        updated_at timestamps automatically.
 
         Args:
-            model_instance: Instance of the model to create
+            model_instance (Model): Instance of the model to create with fields populated
 
         Returns:
-            The created model instance
+            Model: The created model instance with ID populated
+            
+        Raises:
+            Exception: If database constraint is violated (unique, not null, etc.)
+            
+        Example:
+            >>> user = User(username="alice", email="alice@test.com")
+            >>> created_user = repo.create(user)
+            >>> print(created_user.id)  # ID auto-populated
         """
         with self.transaction_manager.transaction():
             model_instance.save()
@@ -46,13 +109,27 @@ class BaseRepository:
 
     def create_many(self, model_instances: List[Model]) -> List[Model]:
         """
-        Create multiple records in the database.
+        Create multiple records in a single atomic transaction.
+        
+        Ensures all records are created successfully or none at all (atomicity).
 
         Args:
-            model_instances: List of model instances to create
+            model_instances (List[Model]): List of model instances to create
 
         Returns:
-            List of created model instances
+            List[Model]: List of created model instances
+            
+        Raises:
+            Exception: If any record fails to create, all are rolled back
+            
+        Example:
+            >>> users = [
+            ...     User(username="alice", email="alice@test.com"),
+            ...     User(username="bob", email="bob@test.com"),
+            ...     User(username="charlie", email="charlie@test.com"),
+            ... ]
+            >>> created = repo.create_many(users)
+            >>> len(created)  # 3
         """
         with self.transaction_manager.transaction():
             for instance in model_instances:
@@ -63,14 +140,24 @@ class BaseRepository:
         self, primary_key: Union[int, str], include_deleted: bool = False
     ) -> Optional[Model]:
         """
-        Retrieve a record by primary key.
+        Retrieve a single record by primary key (ID).
+        
+        By default, excludes soft-deleted records unless include_deleted=True.
 
         Args:
-            primary_key: The primary key value
-            include_deleted: Whether to include soft-deleted records
+            primary_key (Union[int, str]): The primary key value to search for
+            include_deleted (bool): Include soft-deleted records. Defaults to False.
 
         Returns:
-            The model instance or None if not found
+            Model or None: The model instance if found, None otherwise
+            
+        Example:
+            >>> user = repo.get_by_id(1)
+            >>> if user:
+            ...     print(user.username)
+            
+            >>> # Include soft-deleted records
+            >>> deleted_user = repo.get_by_id(1, include_deleted=True)
         """
         with self.transaction_manager.transaction():
             query = self.model.select().where(self.model.id == primary_key)
@@ -80,13 +167,24 @@ class BaseRepository:
 
     def get_all(self, include_deleted: bool = False) -> List[Model]:
         """
-        Retrieve all records.
+        Retrieve all records from the table.
+        
+        By default, excludes soft-deleted records. Use include_deleted=True
+        to retrieve all records including soft-deleted ones.
 
         Args:
-            include_deleted: Whether to include soft-deleted records
+            include_deleted (bool): Include soft-deleted records. Defaults to False.
 
         Returns:
-            List of all model instances
+            List[Model]: List of all matching model instances
+            
+        Example:
+            >>> all_active_users = repo.get_all()
+            >>> for user in all_active_users:
+            ...     print(user.username)
+            
+            >>> all_users = repo.get_all(include_deleted=True)
+            >>> total = len(all_users)
         """
         with self.transaction_manager.transaction():
             query = self.model.select()
@@ -283,12 +381,33 @@ class BaseRepository:
     def domain_to_json(self, domain_object: Model) -> str:
         """
         Convert a domain object to JSON.
+        
+        Serializes a model instance to a JSON string representation.
+        All datetime fields are automatically converted to ISO format strings
+        using the DateTimeEncoder from utils.
 
         Args:
-            domain_object: Model instance
+            domain_object (Model): Model instance to convert
 
         Returns:
-            JSON string representation
+            str: JSON string representation with datetime objects as ISO strings
+
+        Example:
+            >>> user = repo.get_by_id(1)
+            >>> user_json = repo.domain_to_json(user)
+            >>> print(user_json)
+            '{"id": 1, "username": "alice", "created_at": "2026-02-08T10:30:00", ...}'
+            
+            >>> # Parse back to dictionary
+            >>> import json
+            >>> data = json.loads(user_json)
+            >>> print(data['created_at'])  # ISO format string, not a datetime object
+            2026-02-08T10:30:00
+            
+            See Also:
+                domain_to_dict: Convert to dictionary instead of JSON string
+                DataTransformer.domain_to_json: The underlying implementation
+                DateTimeEncoder: Custom JSON encoder that handles datetime objects
         """
         return DataTransformer.domain_to_json(domain_object)
 

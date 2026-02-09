@@ -4,7 +4,29 @@ Data Transformer - Utility for converting between different data formats.
 
 from typing import Type, Optional, Dict, Any
 import json
+from datetime import datetime
 from peewee import Model
+
+
+class DateTimeEncoder(json.JSONEncoder):
+    """
+    Custom JSON encoder that handles datetime objects.
+    
+    Converts datetime objects to ISO format strings for JSON serialization.
+    Can be used with json.dumps(..., cls=DateTimeEncoder).
+    
+    Example:
+        >>> from datetime import datetime
+        >>> obj = {"created": datetime(2026, 2, 8, 10, 30, 0)}
+        >>> json.dumps(obj, cls=DateTimeEncoder)
+        '{"created": "2026-02-08T10:30:00"}'
+    """
+    
+    def default(self, obj):
+        """Convert datetime objects to ISO format strings."""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
 
 
 class DataTransformer:
@@ -30,14 +52,22 @@ class DataTransformer:
     def model_to_json(model: Model) -> str:
         """
         Convert a Peewee model instance to a JSON string.
+        
+        Automatically handles datetime objects by converting them to ISO format strings.
 
         Args:
             model: Peewee model instance
 
         Returns:
             JSON string representation of the model
+            
+        Example:
+            >>> user = User(id=1, username="alice", created_at=datetime.now())
+            >>> json_str = DataTransformer.model_to_json(user)
+            >>> print(json_str)
+            {"id": 1, "username": "alice", "created_at": "2026-02-08T..."}
         """
-        return json.dumps(model.__data__, default=str)
+        return json.dumps(model.__data__, cls=DateTimeEncoder)
 
     @staticmethod
     def row_to_domain(row: Optional[Model], domain_class: Type[Model]) -> Optional[Model]:
@@ -78,14 +108,23 @@ class DataTransformer:
     def domain_to_json(domain_object: Model) -> str:
         """
         Convert a domain model object to a JSON string.
+        
+        Automatically handles datetime objects by converting them to ISO format strings.
 
         Args:
             domain_object: Model instance
 
         Returns:
-            JSON string representation
+            JSON string representation with datetime objects as ISO strings
+            
+        Example:
+            >>> user = User(username="alice")
+            >>> json_str = DataTransformer.domain_to_json(user)
+            >>> import json
+            >>> data = json.loads(json_str)
+            >>> print(data["created_at"])  # ISO format string
         """
-        return json.dumps(domain_object.__data__, default=str)
+        return json.dumps(domain_object.__data__, cls=DateTimeEncoder)
 
     @staticmethod
     def dict_to_model(data: Dict[str, Any], model_class: Type[Model]) -> Model:
@@ -133,14 +172,22 @@ class DataTransformer:
     def dict_to_json(data: Dict[str, Any]) -> str:
         """
         Convert a dictionary to a JSON string.
+        
+        Automatically handles datetime objects by converting them to ISO format strings.
 
         Args:
-            data: Dictionary to convert
+            data: Dictionary to convert (may contain datetime objects)
 
         Returns:
-            JSON string
+            JSON string with datetime objects converted to ISO format
+            
+        Example:
+            >>> from datetime import datetime
+            >>> data = {"username": "alice", "created": datetime.now()}
+            >>> json_str = DataTransformer.dict_to_json(data)
+            >>> print(json_str)  # datetime is ISO format string
         """
-        return json.dumps(data, default=str)
+        return json.dumps(data, cls=DateTimeEncoder)
 
     def __repr__(self) -> str:
         """String representation."""

@@ -393,7 +393,7 @@ class RegistrationService:
         
         # Step 4: Create user in transaction
         try:
-            with self.db.transaction() as txn:
+            with self.db.transaction:
                 # Hash password
                 password_hash = self.hash_password(password)
                 
@@ -622,7 +622,7 @@ class DataImportService:
             with open(filepath, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 
-                with self.db.transaction():
+                with self.db.transaction:
                     for row_num, row in enumerate(reader, start=2):  # Start at 2 (skip header)
                         try:
                             # Step 1: Transform data
@@ -699,7 +699,7 @@ class DataImportService:
             # Handle both list and dict formats
             users_data = data if isinstance(data, list) else [data]
             
-            with self.db.transaction():
+            with self.db.transaction:
                 for idx, user_data in enumerate(users_data):
                     try:
                         # Step 1: Transform
@@ -953,7 +953,7 @@ class BatchOperationService:
         }
         
         try:
-            with self.db.transaction():
+            with self.db.transaction:
                 for idx, data in enumerate(users_data):
                     try:
                         user = User(**data)
@@ -1000,7 +1000,7 @@ class BatchOperationService:
         }
         
         try:
-            with self.db.transaction():
+            with self.db.transaction:
                 for user_id, field_name, new_value in updates:
                     try:
                         rows = self.repo.update(user_id, (field_name, new_value))
@@ -1060,7 +1060,7 @@ class BatchOperationService:
         }
         
         try:
-            with self.db.transaction():
+            with self.db.transaction:
                 for idx, op in enumerate(operations):
                     try:
                         action = op.get("action")
@@ -1285,7 +1285,7 @@ class PostService:
     def create_post_with_logging(self, user_id, title, content):
         """Create post with metadata and logging in transaction."""
         try:
-            with self.db.transaction():
+            with self.db.transaction:
                 # Step 1: Verify user exists
                 user = self.user_repo.get_by_id(user_id)
                 if not user:
@@ -1558,7 +1558,7 @@ users = user_repo.get_all(include_deleted=True)
 
 ### Atomic Transaction
 ```python
-with db.transaction():
+with db.transaction:
     # all ops atomic
     user1.save()
     user2.save()

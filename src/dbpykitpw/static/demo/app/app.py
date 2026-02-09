@@ -1,3 +1,4 @@
+from models import User
 from repos.product_repo import ProductRepository
 from models.product import Product
 from repos.user_repo import UserRepository
@@ -17,15 +18,21 @@ print(f"Available models: {db._models.keys()}")
 
 # Example usage of UserRepository
 UserRepositoryClass = db.get_repository("user_repo")
-user_repo = UserRepositoryClass(db._db)  # Instantiate the repository with database
-
-# Fetch all column info of the User model
-ids = user_repo.get_column_info("user", db._db)
-for each in ids:
-    print(each)
+user_repo = UserRepositoryClass(db._db)  # Instantiate the repository
 
 # Get the User model object
 user_model = user_repo.model
+print(f"User model: {user_model}")
+
+# Create a user instance and use dynamic setters
+user = user_model()
+#emty the database before creating the user
+user_repo.delete_all()  # Clear existing users for demo purposes
+
+# Dynamic setter methods are automatically available now
+# create user instance
+new_user = user.set_first_name("John").set_last_name("Doe").set_email("johndoes@test.com").set_username("johndoe1").set_is_active(True).set_full_name("John Doe").set_birth_date("1990-01-01").set_phone_number("123-456-7890")
+print(f"New User instance: {new_user}")
 print(f"User model: {user_model}")
 
 # User model fields (attributes)
@@ -54,7 +61,7 @@ def get_user_dict():
     """
     return {
         "email": "test@email.com",
-        "username": "testuser",
+        "username": "testuser2",
         "is_active": True,
         "first_name": "Test",
         "last_name": "User",
@@ -101,6 +108,12 @@ def main():
     fetched_user = user_repo.model.get(user_repo.model.id == created_user.id)
     print(f"\nFetched User: {fetched_user}")
 
+    # Convert user to JSON (datetime objects are automatically handled)
+    user_json = user_repo.domain_to_json(fetched_user)
+    print(f"User as JSON:\n{user_json}")
+
+    
+
     # 2. **Update**: Update the product price
     updated_product = created_product
     updated_product.price = 49.99
@@ -122,6 +135,7 @@ def main():
     all_products = product_repo.model.select()
     for product in all_products:
         print(f"Product: {product}")
+
 
 if __name__ == "__main__":
     main()

@@ -203,7 +203,7 @@ def demo_transaction_management(db: DatabaseSingleton):
     ]
 
     try:
-        with db.transaction() as transaction_db:
+        with db.transaction:
             for user in users_to_create:
                 user.save()
             print(f"  ✓ Transaction committed with {len(users_to_create)} users")

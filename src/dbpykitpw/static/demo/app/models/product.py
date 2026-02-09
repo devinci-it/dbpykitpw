@@ -40,6 +40,10 @@ class Product(BaseModel):
     class Meta:
         table_name = "product"
     
+    def __init__(self, **kwargs):
+        """Initialize Product with dynamic setter methods."""
+        super().__init__(**kwargs)
+    
     def __repr__(self):
         """Return detailed string representation."""
         return f"Product(id={self.id}, created={self.created_at})"

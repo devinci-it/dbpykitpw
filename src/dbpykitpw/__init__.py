@@ -6,7 +6,7 @@ A lightweight ORM toolkit providing database management, repositories, and data 
 from .db import DatabaseSingleton, TransactionManager
 from .models import BaseModel
 from .repositories import BaseRepository
-from .utils import DataTransformer, register_repository
+from .utils import DataTransformer, DateTimeEncoder, register_repository
 from .cli import DemoPublisher
 
 __version__ = "1.0.0"
@@ -22,6 +22,7 @@ __all__ = [
     "BaseRepository",
     # Utils
     "DataTransformer",
+    "DateTimeEncoder",
     "register_repository",
     # CLI
     "DemoPublisher",

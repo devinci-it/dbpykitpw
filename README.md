@@ -531,7 +531,7 @@ db.connect()
 db.create_tables()
 db.get_repository("user_repo")  # Get repo class
 db.get_model("user")             # Get model class
-with db.transaction():           # Transaction context
+with db.transaction:            # Transaction context (no parentheses needed)
     # Atomic operations
 ```
 

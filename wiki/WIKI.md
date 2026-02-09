@@ -517,7 +517,7 @@ db = DatabaseSingleton.get_instance()
 
 # Atomic transaction
 try:
-    with db.transaction() as txn:
+    with db.transaction:
         user1 = User(username="alice", email="alice@example.com", full_name="Alice")
         user1.save()
         
@@ -957,7 +957,7 @@ users_data = [
 ]
 
 try:
-    with db.transaction():
+    with db.transaction:
         for data in users_data:
             user = User(**data)
             user_repo.create(user)
@@ -1013,7 +1013,7 @@ db.disconnect()
 
 ```python
 # ✓ Good: Atomic operation
-with db.transaction():
+with db.transaction:
     user1 = User(username="alice", email="alice@example.com", full_name="Alice")
     user1.save()
     user2 = User(username="bob", email="bob@example.com", full_name="Bob")
@@ -1157,12 +1157,12 @@ users = user_repo.get_all(include_deleted=False)
 
 ### Issue: "Transaction not atomic"
 
-**Cause**: Not using `db.transaction()` context manager.
+**Cause**: Not using `db.transaction` context manager.
 
 **Solution**:
 ```python
 # Use context manager for atomicity
-with db.transaction():
+with db.transaction:
     # All operations here are atomic
     user.save()
 ```
